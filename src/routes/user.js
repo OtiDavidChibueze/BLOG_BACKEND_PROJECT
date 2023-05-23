@@ -7,7 +7,7 @@ const {
   UpdateUserSchemaValidation,
   resetPassword,
 } = require("../validation/schema/user");
-const { validate } = require("../validation/schemaValidation");
+const { validate } = require("../validation/schemaValidationHelper");
 
 router.get("/", userController.getUsers);
 
