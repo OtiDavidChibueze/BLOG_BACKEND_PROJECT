@@ -22,8 +22,8 @@ const SuperAdmins_Router = require("../routes/superAdmins");
 
 app.use("/api/user/", User_Router);
 app.use("/api/blog/", BlogPost_Router);
-// app.use("/api/admin/", Admins_Router);
-// app.use("/api/superAdmin/", SuperAdmins_Router);
+app.use("/api/admin/", Admins_Router);
+app.use("/api/superAdmin/", SuperAdmins_Router);
 app.get("/api/home", (req, res) => {
   res.status(200).send("welcome to the home page");
 });
