@@ -1,8 +1,9 @@
 // USER CONTROLLER
 const UserModel = require("../model/user");
-const mongoose = require("mongoose");
+const BlogPostModel = require("../model/blogPost");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const slugify = require("slugify");
 const { successResponse, errorResponse } = require("../utils/responseHelper");
 const Token = require("../utils/token");
 const HelperFunction = require("../utils/helperFunction");
@@ -11,16 +12,19 @@ const HelperFunction = require("../utils/helperFunction");
  * @description - THIS IS THE USER ENDPOINTS
  */
 
-class UserController {
+class userController {
   /**
    * @description - THIS ENDPOINT IS USED TO GET ALL USERS
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
    * @returns {object} -  RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async getUsers(req, res) {
+    if (req.user.role !== "admin")
+      return errorResponse(res, 401, "unauthorized");
+
     try {
       // CREATE A QUERY OPTIONS
       const options = {
@@ -60,14 +64,36 @@ class UserController {
   }
 
   /**
+   * @description - THIS ENDPOINT ALLOWS USER TO GET THEIR PROFILE
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof UserController
+   */
+
+  static async getProfile(req, res) {
+    if (req.user.role !== "user")
+      return errorResponse(res, 401, "unauthorized");
+
+    const { _id } = req.user;
+
+    const User = await UserModel.find({ _id }).select("-password");
+
+    successResponse(res, 201, User);
+  }
+
+  /**
    * @description - THIS ENDPOINT IS USED TO GET ALL USERS COUNTS
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
    * @returns {object} - // RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async getUserCounts(req, res) {
+    if (req.user.role !== "admin")
+      return errorResponse(res, 401, "unauthorized");
+
     const counts = await UserModel.countDocuments();
     if (!counts) {
       return res.status(404).json({ counts: 0 });
@@ -81,10 +107,13 @@ class UserController {
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
    * @returns {object} - // RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async getUsersById(req, res) {
+    if (req.user.role !== "admin")
+      return errorResponse(res, 401, "unauthorized");
+
     // GETTING THE ID IN THE PARAMS
     const { id } = req.params;
 
@@ -92,14 +121,16 @@ class UserController {
     HelperFunction.isValidObjectId(id);
 
     // GETTING THE USER WITH THE PROVIDED ID
-    const users = await UserModel.findById({ _id: req.params.id })
+    const users = await UserModel.findById({
+      _id: req.params.id,
+    })
       .select("-_id -createdAt -updatedAt -password -__v")
-      .sort({ " userDate": -1 });
+      .sort({ " UserDate": -1 });
 
     if (!users) {
-      return res.status(404).json({ message: "user with that id not found" });
+      return res.status(404).json({ message: "User with that id not found" });
     } else {
-      return res.status(200).send({ user: users });
+      return res.status(200).send({ User: users });
     }
   }
 
@@ -108,17 +139,21 @@ class UserController {
    * @param {object} req -  THE REQUEST OBJECT
    * @param {object} res -  THE RESPONSE OBJECT
    * @returns {object} -  RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async RegisterUsers(req, res) {
+    if (req.user.role !== "admin" && req.user.role !== "superAdmin")
+      return errorResponse(res, 401, "unauthorized");
     const { userName, email, password, country, city, mobile } = req.body;
     try {
-      const userExist = await UserModel.findOne({ email });
-      if (userExist)
+      const UserExist = await UserModel.findOne({
+        email,
+      });
+      if (UserExist)
         return res
           .status(400)
-          .json({ message: "user already exists please login" });
+          .json({ message: "User already exists please login" });
 
       const mobileExist = await UserModel.findOne({ mobile });
       if (mobileExist)
@@ -142,7 +177,7 @@ class UserController {
       // REMOVE THE PASSWORD FROM THE RESPONSE BEEN SENT TO THE CLIENT
       createUser.password = undefined;
 
-      if (!createUser) return errorResponse(res, 500, "user not created");
+      if (!createUser) return errorResponse(res, 500, "User not created");
 
       successResponse(res, 201, "registered please login", createUser);
     } catch (error) {
@@ -155,24 +190,24 @@ class UserController {
    * @param {object} req -  THE REQUEST OBJECT
    * @param {object} res -  THE RESPONSE OBJECT
    * @returns {object} -  RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async loginUsers(req, res) {
     const { email, password } = req.body;
 
     try {
-      const user = await UserModel.findOne({ email });
+      const User = await UserModel.findOne({ email });
 
-      if (!user) {
-        return errorResponse(res, 404, "user with this email not found");
-      } else if (user && bcrypt.compareSync(password, user.password)) {
-        const accessToken = Token.generateToken(user);
+      if (!User) {
+        return errorResponse(res, 404, "User with this email not found");
+      } else if (User && bcrypt.compareSync(password, User.password)) {
+        const accessToken = Token.generateToken(User);
         res.cookie("user", accessToken, {
-          maxAge: 1 * 24 * 28 * 1000,
+          maxAge: 1 * 24 * 28 * 24 * 1000,
           httpOnly: true,
         });
-        successResponse(res, 200, "logged in", user.email);
+        successResponse(res, 200, "logged in", User.email);
       } else {
         errorResponse(res, 404, "incorrect password");
       }
@@ -186,12 +221,12 @@ class UserController {
    * @param {object} req -  THE REQUEST OBJECT
    * @param {object} res -  THE RESPONSE OBJECT
    * @returns {object} -  RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async logoutUsers(req, res) {
     if (req?.user?.role !== "user")
-      return errorResponse(res, 403, "unauthorized");
+      return errorResponse(res, 401, "unauthorized");
 
     res.cookie("user", "", {
       maxAge: 1,
@@ -206,18 +241,21 @@ class UserController {
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
    * @returns {object} - RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async updateUserById(req, res) {
-    const { userName, country, city, mobile } = req.body;
+    if (req.user.role !== "admin" && req.user.role !== "superAdmin")
+      return errorResponse(res, 401, "unauthorized");
 
     const { id } = req.params;
 
     HelperFunction.isValidObjectId(id);
 
     try {
-      const mobileExists = await UserModel.findOne({ mobile });
+      const mobileExists = await UserModel.findOne({
+        mobile: req.body.mobile,
+      });
       if (mobileExists)
         return errorResponse(
           res,
@@ -225,7 +263,7 @@ class UserController {
           "mobile already exists , pls use a different one"
         );
 
-      const user = await UserModel.findByIdAndUpdate(
+      const User = await UserModel.findByIdAndUpdate(
         { _id: req.params.id },
         req.body,
         {
@@ -234,13 +272,42 @@ class UserController {
       );
 
       // REMOVE THE USER PASSWORD FROM THE RESPONSE BEEN SEND TO THE CLIENT
-      user.password = undefined;
+      User.password = undefined;
 
-      if (!user) {
+      if (!User) {
         return errorResponse(res, 500, "internet error");
       } else {
-        return successResponse(res, 200, "updated successfully", user);
+        return successResponse(res, 200, "updated successfully", User);
       }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  /**
+   * @description - THIS ENDPOINT ALLOW USER TO UPDATE THEIR PROFILE
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof UserController
+   */
+
+  static async updateProfile(req, res) {
+    if (req.user.role !== "user")
+      return errorResponse(res, 401, "unauthorized");
+
+    try {
+      const { _id } = req.user;
+
+      const User = await UserModel.findByIdAndUpdate({ _id }, req.body, {
+        new: true,
+      });
+
+      User.password = undefined;
+
+      if (!User) return errorResponse(res, 500, "internet error");
+
+      successResponse(res, 200, "updated", User);
     } catch (error) {
       console.log(error);
     }
@@ -251,20 +318,25 @@ class UserController {
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
    * @returns {object} - // RETURNS AN OBJECT
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async deleteUserById(req, res) {
+    if (req.user.role !== "admin" && req.user.role !== "superAdmin")
+      return errorResponse(res, 401, "unauthorized");
+
     const { id } = req.params;
 
     HelperFunction.isValidObjectId(id);
 
-    const delUser = await UserModel.findByIdAndDelete({ _id: req.params.id });
+    const delUser = await UserModel.findByIdAndDelete({
+      _id: req.params.id,
+    });
 
     if (!delUser) {
-      return errorResponse(res, 404, "user not found");
+      return errorResponse(res, 404, "User not found");
     } else {
-      return successResponse(res, 200, "user deleted  successfully");
+      return successResponse(res, 200, "User deleted  successfully");
     }
   }
 
@@ -273,21 +345,21 @@ class UserController {
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
    * @returns {string} - RETURNS A SUCCESS MESSAGE
-   * @memberof userController
+   * @memberof UserController
    */
   static async changePassword(req, res) {
     if (req?.user?.role !== "user")
-      return errorResponse(res, 403, "unauthorized");
+      return errorResponse(res, 401, "unauthorized");
 
-    const { id } = req.user;
+    const { id } = req.User;
 
     const { newPassword, oldPassword } = req.body;
 
-    const user = await UserModel.findOne({ id });
+    const User = await UserModel.findOne({ id });
 
     const oldPasswordIsMatched = HelperFunction.comparePassword(
       oldPassword,
-      user.password
+      User.password
     );
 
     const hashedPassword = HelperFunction.hashPassword(newPassword);
@@ -295,10 +367,10 @@ class UserController {
     if (!oldPasswordIsMatched) {
       return errorResponse(res, 400, "incorrect password");
     } else {
-      await user.createPasswordResetToken();
-      user.password = hashedPassword;
+      HelperFunction.generatePasswordResetToken();
+      User.password = hashedPassword;
 
-      await user.save();
+      await User.save();
 
       return successResponse(res, 200, "password updated");
     }
@@ -309,20 +381,20 @@ class UserController {
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
    * @returns {object} - RETURNS A SUCCESS MESSAGE
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async forgotPassword(req, res) {
     const { email } = req.body;
 
-    const user = await UserModel.findOne({ email });
+    const User = await UserModel.findOne({ email });
 
-    if (!user) {
-      return errorResponse(res, 404, "user with this email not found");
-    } else if (user) {
-      const resetToken = await user.createPasswordResetToken();
+    if (!User) {
+      return errorResponse(res, 404, "User with this email not found");
+    } else if (User) {
+      const resetToken = HelperFunction.generatePasswordResetToken();
 
-      const resetUrl = `Hi please click the link to reset your password, link is only valid for 10min <a href=http://localhost:8080/api/user/resetPassword/${resetToken} >click here</a> `;
+      const resetUrl = `Hi please click the link to reset your password, link is only valid for 10min <a href=http://localhost:8080/api/User/resetPassword/${resetToken} >click here</a> `;
 
       const data = {
         to: email,
@@ -341,7 +413,7 @@ class UserController {
    * @param {object} req - THE RESPONSE OBJECT
    * @param {object} res - THE REQUEST OBJECT
    * @returns {object} - RETURNS A SUCCESS RESPONSE
-   * @memberof userController
+   * @memberof UserController
    */
 
   static async resetPassword(req, res) {
@@ -355,12 +427,12 @@ class UserController {
         .update(tokenId)
         .digest("hex");
 
-      const user = await UserModel.findOne({
+      const User = await UserModel.findOne({
         passwordResetToken: hashToken,
         passwordResetTokenExpiresAt: { $gt: Date.now() },
       });
 
-      if (!user) {
+      if (!User) {
         return errorResponse(
           res,
           404,
@@ -369,12 +441,119 @@ class UserController {
       } else {
         const hashedPassword = HelperFunction.hashPassword(newPassword);
 
-        user.password = hashedPassword;
-        user.passwordResetToken = undefined;
-        user.passwordResetTokenExpiresAt = undefined;
+        User.password = hashedPassword;
+        User.passwordResetToken = undefined;
+        User.passwordResetTokenExpiresAt = undefined;
 
-        await user.save();
+        await User.save();
         successResponse(res, 200, "password updated pls login");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  /**
+   * @description - THIS ENDPOINT IS USED TO SAVE A BLOG TO YOUR BLOG LIST , CLICK SEND BUTTON TO SAVE OR CLICK AGAIN TO REMOVE
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {  object} - RETURNS A MESSAGE
+   * @memberof UserController
+   */
+
+  static async saveBlogToList(req, res) {
+    if (req.user.role !== "User")
+      return errorResponse(res, 401, "unauthorized");
+
+    const { blogId } = req.body;
+
+    const loggedInUserId = req.user._id;
+
+    const blog = await BlogPostModel.findById(blogId);
+
+    if (!blog) return errorResponse(res, 404, "blog not found");
+
+    const User = await UserModel.findById(loggedInUserId);
+
+    const alreadySaved = User.saveBlog.find(
+      (blogId) => blogId.toString() === blogId.toString()
+    );
+
+    if (alreadySaved) {
+      User.saveBlog.pull(blogId);
+
+      await User.save();
+
+      return successResponse(res, 200, "removed from save list");
+    } else {
+      User.saveBlog.push(blogId);
+
+      await User.save();
+
+      return successResponse(res, 200, "added to save list");
+    }
+  }
+
+  static async getSavedList(req, res) {
+    if (req.user.role !== "user")
+      return errorResponse(res, 401, "unauthorized");
+
+    try {
+      const loggedInUserId = req.user._id;
+
+      const getSavedList = await UserModel.findById(loggedInUserId)
+        .select("saveBlog -_id")
+        .populate({
+          path: "saveBlog",
+          select: "title description postedBy",
+        });
+
+      if (!getSavedList) return errorResponse(res, 404, "no saved blogs");
+
+      successResponse(res, 200, getSavedList);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  /**
+   * @description - THE ENDPOINT CREATES A BLOG POST
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object}  - RETURNS A MESSAGE
+   * @memberof blogController
+   */
+  static async createBlogs(req, res) {
+    if (req.user.role !== "user")
+      return errorResponse(res, 401, "unauthorized");
+
+    try {
+      if (req.body.title) {
+        req.body.slug = slugify(req.body.title);
+      }
+
+      const blogExists = await BlogPostModel.findOne({ title: req.body.title });
+      if (blogExists) return errorResponse(res, 400, "blog Exists");
+
+      const blogSlugExists = await BlogPostModel.findOne({
+        slug: req.body.slug,
+      });
+      if (blogSlugExists) return errorResponse(res, 400, "blog Exists");
+
+      const existingUser = await UserModel.findById({
+        _id: req.user._id,
+      });
+
+      const createBlog = await new BlogPostModel(req.body).save();
+
+      if (createBlog) {
+        createBlog.postedBy = existingUser.id;
+
+        await createBlog.save();
+
+        successResponse(res, 200, createBlog);
+      } else {
+        return errorResponse(res, 500, "blog post not created");
       }
     } catch (error) {
       console.log(error);
@@ -382,4 +561,4 @@ class UserController {
   }
 }
 
-module.exports = UserController;
+module.exports = userController;
