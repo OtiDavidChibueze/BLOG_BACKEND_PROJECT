@@ -4,7 +4,7 @@ const { SECRET } = require("../config/keys");
 const { errorResponse } = require("../utils/responseHelper");
 
 const authorization = (req, res, next) => {
-  const token = req.cookies.user;
+  const token = req.cookies.user || req.cookies.admin || req.cookies.superAdmin;
 
   try {
     //* CHECKING IF TOKEN EXISTS
@@ -36,21 +36,21 @@ const authorization = (req, res, next) => {
             role: decodedToken.role,
           };
 
-          if (req.user.role === "user") {
-            next();
-          } else if (req.user.role === "admin") {
-            next();
-          } else if (req.user.role === "superAdmin") {
+          if (
+            req.user.role === "user" ||
+            req.user.role === "admin" ||
+            req.user.role === "superAdmin"
+          ) {
             next();
           } else {
-            res.status(400).json({ message: "unauthorized" });
+            return errorResponse(res, 401, "unauthorized");
           }
         }
       }
     );
   } catch (error) {
     console.log({ error });
-    res.status(500).json({ error: error.message });
+    errorResponse(res, 500, "error found");
   }
 };
 
