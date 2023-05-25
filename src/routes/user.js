@@ -1,46 +1,73 @@
 //* USER ROUTER
 const router = require("express").Router();
-const userController = require("../controller/user");
+const usersController = require("../controller/user");
 const { authorization } = require("../middleware/authorization");
 const {
   UserRegisterSchemaValidation,
   UpdateUserSchemaValidation,
   resetPassword,
 } = require("../validation/schema/user");
+const { blogCreationSchema } = require("../validation/schema/blogPost");
 const { validate } = require("../validation/schemaValidationHelper");
 
-router.get("/", userController.getUsers);
+router.get("/", authorization, usersController.getUsers);
 
-router.get("/counts", userController.getUserCounts);
+router.get("/getProfile", authorization, usersController.getProfile);
 
-router.get("/:id", userController.getUsersById);
+router.get("/counts", authorization, usersController.getUserCounts);
 
-router.post("/login", userController.loginUsers);
+router.get("/savedBlog/list", authorization, usersController.getSavedList);
 
-router.post("/logout", authorization, userController.logoutUsers);
+router.get("/:id", authorization, usersController.getUsersById);
+
+router.post("/login", usersController.loginUsers);
+
+router.put(
+  "/updateProfile",
+  authorization,
+  validate(UpdateUserSchemaValidation),
+  usersController.updateProfile
+);
+
+router.post("/logout", authorization, usersController.logoutUsers);
 
 router.post(
   "/register",
+  authorization,
   validate(UserRegisterSchemaValidation),
-  userController.RegisterUsers
+  usersController.RegisterUsers
 );
 
-router.put("/changePassword", authorization, userController.changePassword);
+router.put("/changePassword", authorization, usersController.changePassword);
 
 router.put(
   "/:id",
+  authorization,
   validate(UpdateUserSchemaValidation),
-  userController.updateUserById
+  usersController.updateUserById
 );
 
-router.delete("/:id", authorization, userController.deleteUserById);
+router.delete("/:id", authorization, usersController.deleteUserById);
 
-router.post("/forgotPassword", userController.forgotPassword);
+router.post("/forgotPassword", usersController.forgotPassword);
 
 router.put(
   "/resetPassword/:tokenId",
   validate(resetPassword),
-  userController.resetPassword
+  usersController.resetPassword
+);
+
+router.post(
+  "/save/remove/blogPost/fromList",
+  authorization,
+  usersController.saveBlogToList
+);
+
+router.post(
+  "/create",
+  authorization,
+  validate(blogCreationSchema),
+  usersController.createBlogs
 );
 
 module.exports = router;
