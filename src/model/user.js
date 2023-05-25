@@ -1,8 +1,6 @@
-//* USER SCHEMA
+// USER SCHEMA
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-const crypto = require("crypto");
-const bcrypt = require("bcrypt");
 const mongoosePaginate = require("mongoose-paginate-v2");
 
 const UserSchema = new Schema(
@@ -37,7 +35,12 @@ const UserSchema = new Schema(
       required: true,
       unique: true,
     },
-    saveBlog: [],
+    saveBlog: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "BlogPost",
+      },
+    ],
     passwordResetToken: {
       type: String,
     },
@@ -50,18 +53,6 @@ const UserSchema = new Schema(
   },
   { timestamps: true }
 );
-
-// PASSWORD RESET TOKEN
-UserSchema.methods.createPasswordResetToken = async function () {
-  const resetToken = crypto.randomBytes(32).toString("hex");
-  this.passwordResetToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
-  this.passwordResetTokenExpiresAt = Date.now() + 10 * 60 * 1000; //* set expiration to 10 minutes
-  await this.save();
-  return resetToken;
-};
 
 // PLUGIN PAGINATOR
 UserSchema.plugin(mongoosePaginate);
