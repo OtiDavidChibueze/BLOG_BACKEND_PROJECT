@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { MAIL, MAIL_P } = require("../config/keys");
 
@@ -72,6 +73,16 @@ class HelperFunction {
 
   static async comparePassword(password, hashedPassword) {
     return await bcrypt.compare(password, hashedPassword);
+  }
+
+  static async generatePasswordResetToken() {
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    this.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    this.passwordResetTokenExpiresAt = Date.now() + 10 * 60 * 1000; //* set expiration to 10 minutes
+    return resetToken;
   }
 }
 
