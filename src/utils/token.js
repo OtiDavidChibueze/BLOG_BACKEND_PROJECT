@@ -15,7 +15,7 @@ class Token {
     };
 
     const options = {
-      expiresIn: "1d",
+      expiresIn: 1 * 24 * 28 * 24 * 1000,
     };
 
     try {
