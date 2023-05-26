@@ -20,6 +20,10 @@ var blogPostSchema = new mongoose.Schema(
       min: 15,
     },
     images: [],
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
     comments: [
       {
         comment: {
