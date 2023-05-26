@@ -75,11 +75,4 @@ router.post(
   superAdminsController.saveBlogToList
 );
 
-router.post(
-  "/create",
-  authorization,
-  validate(blogCreationSchema),
-  superAdminsController.createBlogs
-);
-
 module.exports = router;
