@@ -95,6 +95,52 @@ class blogController {
   }
 
   /**
+   * @description - THE ENDPOINT CREATES A BLOG POST
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object}  - RETURNS A MESSAGE
+   * @memberof blogController
+   */
+  static async createBlogs(req, res) {
+    if (
+      req.user.role !== "superAdmin" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "user"
+    )
+      return errorResponse(res, 401, "unauthorized");
+
+    try {
+      if (req.body.title) {
+        req.body.slug = slugify(req.body.title);
+      }
+
+      const blogExists = await BlogPostModel.findOne({ title: req.body.title });
+      if (blogExists) return errorResponse(res, 400, "blog Exists");
+
+      const blogSlugExists = await BlogPostModel.findOne({
+        slug: req.body.slug,
+      });
+      if (blogSlugExists) return errorResponse(res, 400, "blog Exists");
+
+      const loggedInUserId = req.user._id;
+
+      const createBlog = await new BlogPostModel(req.body).save();
+
+      if (createBlog) {
+        createBlog.postedBy = loggedInUserId;
+
+        await createBlog.save();
+
+        successResponse(res, 200, createBlog);
+      } else {
+        return errorResponse(res, 500, "blog post not created");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  /**
    * @description - THIS ENDPOINT IS USED TO UPDATE BLOG POST
    * @param {object} req - THE REQUEST OBJECT
    * @param {object} res - THE RESPONSE OBJECT
@@ -220,46 +266,5 @@ class blogController {
    * @returns {object} - RETURNS A MESSAGE
    * @memberof blogController
    */
-
-  static async commentToBlogPost(req, res) {
-    if (
-      req.user.role !== "user" &&
-      req.user.role !== "admin" &&
-      req.user.role !== "superAdmin"
-    )
-      return errorResponse(res, 401, "unauthorized");
-
-    try {
-      const { blogId, comment, commentedBy } = req.body;
-
-      const loggedInUserId = req.user._id;
-
-      const blog = await BlogPostModel.findById(blogId);
-
-      if (!blog) return errorResponse(res, 404, "blog not found");
-
-      const wasCommentedBefore = blog.comments.find(
-        (userId) => userId.commentedBy.toString() === loggedInUserId
-      );
-
-      if (wasCommentedBefore) {
-        wasCommentedBefore.commentedBy = loggedInUserId;
-        wasCommentedBefore.comment = comment;
-
-        await blog.save();
-
-        return successResponse(res, 200, blog);
-      } else {
-        blog.comments.push({ comment: comment, commentedBy: loggedInUserId });
-
-        await blog.save();
-
-        return successResponse(res, 200, blog);
-      }
-    } catch (error) {
-      console.log(error);
-      errorResponse(res, 500, "error found ");
-    }
-  }
 }
 module.exports = blogController;
