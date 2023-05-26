@@ -4,6 +4,7 @@ const { errorResponse, successResponse } = require("../utils/responseHelper");
 const HelperFunction = require("../utils/helperFunction");
 const AdminModel = require("../model/admins");
 const slugify = require("slugify");
+const CategoryModel = require("../model/categories");
 
 class blogController {
   /**
@@ -121,6 +122,12 @@ class blogController {
         slug: req.body.slug,
       });
       if (blogSlugExists) return errorResponse(res, 400, "blog Exists");
+
+      const categoryExists = await CategoryModel.findOne({
+        categoryId: req.body.categoryId,
+      });
+      if (!categoryExists)
+        return errorResponse(res, 404, "invalid category id");
 
       const loggedInUserId = req.user._id;
 
