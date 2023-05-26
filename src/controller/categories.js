@@ -1,11 +1,20 @@
 //* CATEGORY CONTROLLER
 const CategoryModel = require("../model/categories");
 const mongoose = require("mongoose");
+const HelperFunction = require("../utils/helperFunction");
+const { successResponse, errorResponse } = require("../utils/responseHelper");
 
 //* CATEGORY END POINTS
 
 class categoryController {
-  //* GET ALL CATEGORY
+  /**
+   * @description - THIS ENDPOINT IS USE TO GET ALL CATEGORIES
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof categoryController
+   */
+
   static async get(req, res) {
     try {
       const options = {
@@ -38,29 +47,47 @@ class categoryController {
         prevPage: prevPage,
       });
     } catch (error) {
-      return res.status(500).json({ error: error });
+      console.log(error);
+      return errorResponse(res, 500, "server error");
     }
   }
 
-  //* GET CATEGORY COUNT
+  /**
+   * @description - THIS ENDPOINT IS USE TO GET ALL CATEGORY COUNT
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof categoryController
+   */
+
   static async getCategoryCounts(req, res) {
     //* GET COUNTS
     const counts = await CategoryModel.countDocuments();
 
     //* IF THERE'S NOT CATEGORY
     if (!counts) {
-      res.status(404).json({ message: "no category available" });
+      return errorResponse(res, 404, 0);
     } else {
       //* SEND ALL CATEGORY COUNTS TO THE CLIENT
-      return res.status(200).send({ category: counts });
+      return successResponse(res, 200, counts);
     }
   }
 
-  //* GET CATEGORY BY ID
+  /**
+   * @description - THIS ENDPOINT IS USE TO GET A SPECIFIC CATEGORY BY ITS ID
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof categoryController
+   */
+
   static async getCategoryById(req, res) {
     //* CHECKING IF ITS A VALID
-    if (!mongoose.isValidObjectId(req.params.id))
-      return res.status(400).json("invalid id");
+
+    //* CHECKING IF ITS A VALID ID
+    const { id } = req.params;
+
+    HelperFunction.isValidObjectId(id);
 
     //* FIND THE CATEGORY BY ID
     const category = await CategoryModel.findById({ _id: req.params.id })
@@ -71,14 +98,22 @@ class categoryController {
 
     //* IF THE CATEGORY IS NOT FOUND
     if (!category) {
-      return res.status(404).json({ message: "category not found" });
+      return errorResponse(res, 404, "category not found");
     } else {
       //* SEND THE CATEGORY TO THE CLIENT
-      return res.status(200).send({ category: category });
+      return successResponse(res, 200, category);
     }
   }
+  w;
 
-  //* CREATE CATEGORY
+  /**
+   * @description - THIS ENDPOINT IS USE TO CREATE CATEGORIES
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof categoryController
+   */
+
   static async post(req, res) {
     //* DETAILS IN THE BODY
     const { title, icon, color } = req.body;
@@ -96,24 +131,26 @@ class categoryController {
 
     //* IF ITS NOT CREATED
     if (!category) {
-      return res
-        .status(500)
-        .json({ message: " internet error , category not created" });
+      return errorResponse(res, 500, "server error");
     } else {
       //* SEND THE CREATED CATEGORY TO THE CLIENT
-      return res.status(201).json({ created: category });
+      return successResponse(res, 201, "created", category);
     }
   }
 
-  //* UPDATE CATEGORY BY ID
-  static async put(req, res) {
-    //* VALIDATE CATEGORY SCHEMA
-    const { error } = categorySchemaValidation(req.body);
-    if (error) return res.status(422).json(error.details[0].message);
+  /**
+   * @description - THIS ENDPOINT IS USE TO UPDATE CREATED CATEGORIES
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof categoryController
+   */
 
-    //* CHECKING IF THE ID IS VALID
-    if (!mongoose.isValidObjectId(req.params.id))
-      return res.status(400).json({ error: "invalid category id" });
+  static async put(req, res) {
+    //* CHECKING IF ITS A VALID ID
+    const { id } = req.params;
+
+    HelperFunction.isValidObjectId(id);
 
     //* UPDATING THE CATEGORY
     const updateCategory = await CategoryModel.findByIdAndUpdate(
@@ -133,11 +170,19 @@ class categoryController {
     }
   }
 
-  //* DELETE CATEGORY BY ID
+  /**
+   * @description - THIS ENDPOINT IS USE TO DELETE CREATED CATEGORIES
+   * @param {object} req - THE REQUEST OBJECT
+   * @param {object} res - THE RESPONSE OBJECT
+   * @returns {object} - RETURNS A MESSAGE
+   * @memberof categoryController
+   */
+
   static async delete(req, res) {
     //* CHECKING IF ITS A VALID ID
-    if (!mongoose.isValidObjectId(req.params.id))
-      return res.status(400).json({ error: "invalid category id" });
+    const { id } = req.params;
+
+    HelperFunction.isValidObjectId(id);
 
     //* DELETING THE CATEGORY
     const delCategory = await CategoryModel.findByIdAndDelete({
