@@ -509,48 +509,6 @@ class AdminController {
       console.log(error);
     }
   }
-
-  /**
-   * @description - THE ENDPOINT CREATES A BLOG POST
-   * @param {object} req - THE REQUEST OBJECT
-   * @param {object} res - THE RESPONSE OBJECT
-   * @returns {object}  - RETURNS A MESSAGE
-   * @memberof blogController
-   */
-  static async createBlogs(req, res) {
-    if (req.user.role !== "admin")
-      return errorResponse(res, 401, "unauthorized");
-
-    try {
-      if (req.body.title) {
-        req.body.slug = slugify(req.body.title);
-      }
-
-      const blogExists = await BlogPostModel.findOne({ title: req.body.title });
-      if (blogExists) return errorResponse(res, 400, "blog Exists");
-
-      const blogSlugExists = await BlogPostModel.findOne({
-        slug: req.body.slug,
-      });
-      if (blogSlugExists) return errorResponse(res, 400, "blog Exists");
-
-      const existingAdmin = await AdminModel.findById({ _id: req.user._id });
-
-      const createBlog = await new BlogPostModel(req.body).save();
-
-      if (createBlog) {
-        createBlog.postedBy = existingAdmin.id;
-
-        await createBlog.save();
-
-        successResponse(res, 200, createBlog);
-      } else {
-        return errorResponse(res, 500, "blog post not created");
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  }
 }
 
 module.exports = AdminController;
