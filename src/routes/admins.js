@@ -7,7 +7,6 @@ const {
   UpdateUserSchemaValidation,
   resetPassword,
 } = require("../validation/schema/user");
-const { blogCreationSchema } = require("../validation/schema/blogPost");
 const { validate } = require("../validation/schemaValidationHelper");
 
 router.get("/", authorization, adminController.getAdmins);
@@ -61,13 +60,6 @@ router.post(
   "/save/remove/blogPost/fromList",
   authorization,
   adminController.saveBlogToList
-);
-
-router.post(
-  "/create",
-  authorization,
-  validate(blogCreationSchema),
-  adminController.createBlogs
 );
 
 module.exports = router;
