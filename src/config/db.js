@@ -9,7 +9,7 @@ const connectToDatabase = () => {
     });
     console.log("database connected");
   } catch (error) {
-    console.log({ message: "database nit connected ", error });
+    console.log(`database not connected : ${JSON.stringify(error.message)}`);
   }
 };
 
