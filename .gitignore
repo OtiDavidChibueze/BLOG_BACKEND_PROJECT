@@ -3,3 +3,6 @@ node_modules
 .vscode
 eshop.drawio
 *.txt
+logsError.log
+logsWarn.log
+logsInternalError.log
