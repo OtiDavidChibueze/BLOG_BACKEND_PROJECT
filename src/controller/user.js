@@ -58,7 +58,6 @@ class userController {
         prevPage
       );
     } catch (error) {
-      console.log(error);
       return errorResponse(res, 500, "error found , cannot get users");
     }
   }
